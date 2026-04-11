@@ -77,11 +77,12 @@ export default function ImportExportModal() {
             onClick={() => setImportExportOpen(false)}
           />
 
+          <div className="fixed inset-0 z-[201] flex items-center justify-center pointer-events-none">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201] bg-[#1a1a2e] border border-white/10 rounded shadow-2xl w-[480px] max-w-[90vw] overflow-hidden"
+            className="pointer-events-auto bg-[#1a1a2e] border border-white/10 rounded shadow-2xl w-[480px] max-w-[90vw] overflow-hidden"
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h2 className="text-xs font-bold text-gray-400 tracking-[0.2em] uppercase">Управление данными</h2>
@@ -181,6 +182,7 @@ export default function ImportExportModal() {
               )}
             </div>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

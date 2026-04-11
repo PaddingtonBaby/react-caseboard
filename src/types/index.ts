@@ -6,6 +6,7 @@ export interface EvidenceCard {
   title: string;
   description: string;
   imageUrl?: string;
+  color?: string;
   position: { x: number; y: number };
   createdAt: number;
 }
@@ -23,6 +24,25 @@ export interface Task {
   completed: boolean;
 }
 
+export type HistoryAction =
+  | 'card_added'
+  | 'card_deleted'
+  | 'card_updated'
+  | 'card_duplicated'
+  | 'link_added'
+  | 'link_deleted'
+  | 'task_added'
+  | 'task_completed'
+  | 'task_deleted'
+  | 'case_created';
+
+export interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  action: HistoryAction;
+  description: string;
+}
+
 export interface Case {
   id: string;
   name: string;
@@ -30,6 +50,7 @@ export interface Case {
   cards: EvidenceCard[];
   links: EvidenceLink[];
   tasks: Task[];
+  history: HistoryEntry[];
   createdAt: number;
   updatedAt: number;
 }

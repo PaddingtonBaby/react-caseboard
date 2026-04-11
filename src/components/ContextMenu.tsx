@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiMapPin, FiFileText, FiSearch, FiEdit, FiCamera } from 'react-icons/fi';
 import { useStore } from '../store/useStore';
+import { useReactFlow } from 'reactflow';
 import type { EvidenceType } from '../types';
 
 const evidenceTypes: { type: EvidenceType; Icon: React.ComponentType<{ className?: string }>; label: string }[] = [
@@ -13,13 +14,28 @@ const evidenceTypes: { type: EvidenceType; Icon: React.ComponentType<{ className
 ];
 
 export default function ContextMenu() {
-  const { contextMenu, closeContextMenu, addCard } = useStore();
+  const { contextMenu, closeContextMenu, addCard, openContextMenu } = useStore();
+  const { getViewport } = useReactFlow();
 
   const handleAddCard = (type: EvidenceType) => {
     if (contextMenu.flowPosition) {
       addCard(type, contextMenu.flowPosition);
     }
     closeContextMenu();
+  };
+
+  const handleOverlayContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const reactFlowEl = document.querySelector('.react-flow');
+    const bounds = reactFlowEl?.getBoundingClientRect();
+    if (bounds) {
+      const viewport = getViewport();
+      const flowX = (e.clientX - bounds.left - viewport.x) / viewport.zoom;
+      const flowY = (e.clientY - bounds.top - viewport.y) / viewport.zoom;
+      openContextMenu(e.clientX, e.clientY, { x: flowX, y: flowY });
+    } else {
+      openContextMenu(e.clientX, e.clientY);
+    }
   };
 
   return (
@@ -29,6 +45,7 @@ export default function ContextMenu() {
           <div
             className="fixed inset-0 z-[100]"
             onClick={closeContextMenu}
+            onContextMenu={handleOverlayContextMenu}
           />
           
           <motion.div

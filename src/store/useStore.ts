@@ -1,11 +1,18 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import localforage from 'localforage';
-import type { Case, EvidenceCard, EvidenceLink, EvidenceType, ContextMenuState, Task } from '../types';
+import type { Case, EvidenceCard, EvidenceLink, EvidenceType, ContextMenuState, Task, HistoryEntry, HistoryAction } from '../types';
 
 localforage.config({
   name: 'IAEvidenceBoard',
   storeName: 'cases',
+});
+
+const makeHistoryEntry = (action: HistoryAction, description: string): HistoryEntry => ({
+  id: uuidv4(),
+  timestamp: Date.now(),
+  action,
+  description,
 });
 
 interface StoreState {
@@ -57,6 +64,7 @@ const getDefaultCase = (): Case => ({
     { id: uuidv4(), text: 'Определить ключевых лиц', completed: false },
     { id: uuidv4(), text: 'Составить карту локаций', completed: false },
   ],
+  history: [makeHistoryEntry('case_created', 'Дело создано')],
   createdAt: Date.now(),
   updatedAt: Date.now(),
 });
@@ -100,6 +108,7 @@ export const useStore = create<StoreState>((set, get) => ({
   setActiveCase: (id) => set({ activeCaseId: id, selectedCardId: null }),
 
   createCase: (name, description) => {
+    const entry = makeHistoryEntry('case_created', `Дело создано: ${name}`);
     const newCase: Case = {
       id: `IA-${String(get().cases.length + 1).padStart(4, '0')}`,
       name,
@@ -107,6 +116,7 @@ export const useStore = create<StoreState>((set, get) => ({
       cards: [],
       links: [],
       tasks: [],
+      history: [entry],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -123,10 +133,11 @@ export const useStore = create<StoreState>((set, get) => ({
       position,
       createdAt: Date.now(),
     };
+    const entry = makeHistoryEntry('card_added', `Добавлена карточка: ${newCard.title || getDefaultTitle(newCard.type)}`);
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
-          ? { ...c, cards: [...c.cards, newCard], updatedAt: Date.now() }
+          ? { ...c, cards: [...c.cards, newCard], history: [...(c.history ?? []), entry], updatedAt: Date.now() }
           : c
       ),
     }));
@@ -134,6 +145,12 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   updateCard: (id, updates) => {
+    const activeCase = get().cases.find((c) => c.id === get().activeCaseId);
+    const card = activeCase?.cards.find((c) => c.id === id);
+    const isSignificant = updates.title !== undefined || updates.description !== undefined || updates.imageUrl !== undefined;
+    const entry = isSignificant
+      ? makeHistoryEntry('card_updated', `Обновлена карточка: ${updates.title ?? card?.title ?? id}`)
+      : null;
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
@@ -142,6 +159,7 @@ export const useStore = create<StoreState>((set, get) => ({
               cards: c.cards.map((card) =>
                 card.id === id ? { ...card, ...updates } : card
               ),
+              history: entry ? [...(c.history ?? []), entry] : (c.history ?? []),
               updatedAt: Date.now(),
             }
           : c
@@ -151,6 +169,9 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   deleteCard: (id) => {
+    const activeCase = get().cases.find((c) => c.id === get().activeCaseId);
+    const card = activeCase?.cards.find((c) => c.id === id);
+    const entry = makeHistoryEntry('card_deleted', `Удалена карточка: ${card?.title || (card ? getDefaultTitle(card.type) : id)}`);
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
@@ -158,6 +179,7 @@ export const useStore = create<StoreState>((set, get) => ({
               ...c,
               cards: c.cards.filter((card) => card.id !== id),
               links: c.links.filter((link) => link.source !== id && link.target !== id),
+              history: [...(c.history ?? []), entry],
               updatedAt: Date.now(),
             }
           : c
@@ -184,10 +206,11 @@ export const useStore = create<StoreState>((set, get) => ({
       createdAt: Date.now(),
     };
 
+    const entry = makeHistoryEntry('card_duplicated', `Дублирована карточка: ${newCard.title || getDefaultTitle(newCard.type)}`);
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
-          ? { ...c, cards: [...c.cards, newCard], updatedAt: Date.now() }
+          ? { ...c, cards: [...c.cards, newCard], history: [...(c.history ?? []), entry], updatedAt: Date.now() }
           : c
       ),
     }));
@@ -228,10 +251,13 @@ export const useStore = create<StoreState>((set, get) => ({
       source,
       target,
     };
+    const srcTitle = activeCase.cards.find((c) => c.id === source)?.title || source;
+    const tgtTitle = activeCase.cards.find((c) => c.id === target)?.title || target;
+    const entry = makeHistoryEntry('link_added', `Связь: ${srcTitle} → ${tgtTitle}`);
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
-          ? { ...c, links: [...c.links, newLink], updatedAt: Date.now() }
+          ? { ...c, links: [...c.links, newLink], history: [...(c.history ?? []), entry], updatedAt: Date.now() }
           : c
       ),
     }));
@@ -239,10 +265,15 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   deleteLink: (id) => {
+    const activeCase = get().cases.find((c) => c.id === get().activeCaseId);
+    const link = activeCase?.links.find((l) => l.id === id);
+    const srcTitle = activeCase?.cards.find((c) => c.id === link?.source)?.title || link?.source || id;
+    const tgtTitle = activeCase?.cards.find((c) => c.id === link?.target)?.title || link?.target || '';
+    const entry = makeHistoryEntry('link_deleted', `Связь удалена: ${srcTitle} → ${tgtTitle}`);
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
-          ? { ...c, links: c.links.filter((link) => link.id !== id), updatedAt: Date.now() }
+          ? { ...c, links: c.links.filter((link) => link.id !== id), history: [...(c.history ?? []), entry], updatedAt: Date.now() }
           : c
       ),
     }));
@@ -255,10 +286,11 @@ export const useStore = create<StoreState>((set, get) => ({
       text,
       completed: false,
     };
+    const entry = makeHistoryEntry('task_added', `Задача добавлена: ${text}`);
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
-          ? { ...c, tasks: [...c.tasks, newTask], updatedAt: Date.now() }
+          ? { ...c, tasks: [...c.tasks, newTask], history: [...(c.history ?? []), entry], updatedAt: Date.now() }
           : c
       ),
     }));
@@ -266,6 +298,13 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   toggleTask: (id) => {
+    const activeCase = get().cases.find((c) => c.id === get().activeCaseId);
+    const task = activeCase?.tasks.find((t) => t.id === id);
+    const willComplete = task ? !task.completed : false;
+    const entry = makeHistoryEntry(
+      'task_completed',
+      willComplete ? `Задача выполнена: ${task?.text}` : `Задача возобновлена: ${task?.text}`
+    );
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
@@ -274,6 +313,7 @@ export const useStore = create<StoreState>((set, get) => ({
               tasks: c.tasks.map((task) =>
                 task.id === id ? { ...task, completed: !task.completed } : task
               ),
+              history: [...(c.history ?? []), entry],
               updatedAt: Date.now(),
             }
           : c
@@ -283,10 +323,13 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   deleteTask: (id) => {
+    const activeCase = get().cases.find((c) => c.id === get().activeCaseId);
+    const task = activeCase?.tasks.find((t) => t.id === id);
+    const entry = makeHistoryEntry('task_deleted', `Задача удалена: ${task?.text || id}`);
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
-          ? { ...c, tasks: c.tasks.filter((task) => task.id !== id), updatedAt: Date.now() }
+          ? { ...c, tasks: c.tasks.filter((task) => task.id !== id), history: [...(c.history ?? []), entry], updatedAt: Date.now() }
           : c
       ),
     }));
@@ -317,6 +360,10 @@ export const useStore = create<StoreState>((set, get) => ({
       }
       imported.id = `IA-${String(get().cases.length + 1).padStart(4, '0')}`;
       imported.updatedAt = Date.now();
+      imported.history = [
+        ...(imported.history ?? []),
+        makeHistoryEntry('case_created', `Дело импортировано: ${imported.name}`),
+      ];
       set((state) => ({
         cases: [...state.cases, imported],
         activeCaseId: imported.id,

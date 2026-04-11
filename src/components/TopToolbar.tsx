@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { FiUser, FiMapPin, FiFileText, FiSearch, FiEdit, FiCamera } from 'react-icons/fi';
 import { useStore } from '../store/useStore';
 import type { EvidenceType } from '../types';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const evidenceTypes: { type: EvidenceType; Icon: React.ComponentType<{ className?: string }>; label: string }[] = [
   { type: 'person', Icon: FiUser, label: 'Личность' },
@@ -16,6 +16,18 @@ const evidenceTypes: { type: EvidenceType; Icon: React.ComponentType<{ className
 export default function TopToolbar() {
   const { addCard, setImportExportOpen, zoom, setZoom } = useStore();
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showAddMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAddMenu]);
 
   const handleAddCard = (type: EvidenceType) => {
     addCard(type, { x: 400 + Math.random() * 200, y: 300 + Math.random() * 200 });
@@ -39,7 +51,7 @@ export default function TopToolbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

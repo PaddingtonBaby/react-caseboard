@@ -6,6 +6,25 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import type { EvidenceCard, EvidenceType } from '../types';
 
+const isValidHex = (color: string | undefined): color is string =>
+  typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color);
+
+const hexLuminance = (hex: string): number => {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+
+const lightenHex = (hex: string, amount: number): string => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const mix = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
+  return `#${mix(r).toString(16).padStart(2, '0')}${mix(g).toString(16).padStart(2, '0')}${mix(b).toString(16).padStart(2, '0')}`;
+};
+
 const typeIcons: Record<EvidenceType, React.ComponentType<{ className?: string }>> = {
   person: FiUser,
   location: FiMapPin,
@@ -18,6 +37,8 @@ const typeIcons: Record<EvidenceType, React.ComponentType<{ className?: string }
 function EvidenceCardNode({ data, selected }: NodeProps<EvidenceCard & { isRemoving?: boolean }>) {
   const { selectCard, deleteCard, duplicateCard } = useStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const validColor = isValidHex(data.color) ? data.color : null;
+  const darkCard = validColor ? hexLuminance(validColor) < 0.35 : false;
   const isNote = data.type === 'note';
   const isRemoving = data.isRemoving || false;
 
@@ -128,7 +149,9 @@ function EvidenceCardNode({ data, selected }: NodeProps<EvidenceCard & { isRemov
           style={{
             width: 160,
             minHeight: 160,
-            background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)',
+            background: data.color
+              ? data.color
+              : 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)',
             transform: `rotate(${(data.id.charCodeAt(0) % 5) - 2}deg)`,
             borderRadius: '2px',
           }}
@@ -136,8 +159,9 @@ function EvidenceCardNode({ data, selected }: NodeProps<EvidenceCard & { isRemov
           <div className="relative z-10 h-full flex flex-col justify-center">
             {data.description ? (
               <p
-                className="text-center text-gray-800 leading-snug break-words"
+                className="text-center leading-snug break-words"
                 style={{
+                  color: darkCard ? '#ffffff' : '#1f2937',
                   fontFamily: '"Caveat", "Comic Sans MS", cursive',
                   fontSize: '20px',
                   fontWeight: 600,
@@ -151,7 +175,7 @@ function EvidenceCardNode({ data, selected }: NodeProps<EvidenceCard & { isRemov
             ) : (
               (() => {
                 const IconComponent = typeIcons[data.type];
-                return <IconComponent className="text-3xl opacity-40 mx-auto text-gray-700" />;
+                return <IconComponent className={`text-3xl opacity-40 mx-auto ${darkCard ? 'text-white' : 'text-gray-700'}`} />;
               })()
             )}
           </div>
@@ -207,7 +231,7 @@ function EvidenceCardNode({ data, selected }: NodeProps<EvidenceCard & { isRemov
       </div>
 
       <div
-        className={`relative bg-[#f5f5f5] p-1.5 transition-all duration-200 ${
+        className={`relative p-1.5 transition-all duration-200 ${
           selected
             ? 'shadow-[0_0_20px_rgba(255,255,255,0.2),0_8px_30px_rgba(0,0,0,0.5)]'
             : 'shadow-md hover:shadow-lg'
@@ -216,6 +240,7 @@ function EvidenceCardNode({ data, selected }: NodeProps<EvidenceCard & { isRemov
           width: 160,
           transform: `rotate(${(data.id.charCodeAt(0) % 5) - 2}deg)`,
           borderRadius: '2px',
+          background: data.color || '#f5f5f5',
         }}
       >
         <div
@@ -223,29 +248,32 @@ function EvidenceCardNode({ data, selected }: NodeProps<EvidenceCard & { isRemov
           style={{
             background: data.imageUrl
               ? `url(${data.imageUrl}) center/cover`
+              : validColor
+              ? lightenHex(validColor, 0.45)
               : '#e5e7eb',
           }}
         >
           {!data.imageUrl && (() => {
             const IconComponent = typeIcons[data.type];
-            return <IconComponent className="text-4xl opacity-30 text-gray-600" />;
+            return <IconComponent className={`text-4xl opacity-30 ${darkCard ? 'text-white' : 'text-gray-600'}`} />;
           })()}
         </div>
 
         <div className="pt-3 pb-1 px-1">
           <p
-            className="text-center text-gray-800 leading-tight truncate"
+            className="text-center leading-tight truncate"
             style={{
+              color: darkCard ? '#ffffff' : '#1f2937',
               fontFamily: '"Courier New", monospace',
               fontSize: '14px',
               fontWeight: 'bold',
-              letterSpacing: '-0.5px'
+              letterSpacing: '-0.5px',
             }}
           >
             {data.title}
           </p>
           {data.description && (
-            <p className="text-[9px] text-gray-500 text-center mt-1 truncate font-mono uppercase tracking-wide">
+            <p className="text-[9px] text-center mt-1 truncate font-mono uppercase tracking-wide" style={{ color: darkCard ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>
               {data.description}
             </p>
           )}
