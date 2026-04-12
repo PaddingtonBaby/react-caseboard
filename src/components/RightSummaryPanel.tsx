@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import { useState, useRef } from 'react';
-import { FiClock, FiUser, FiMapPin, FiFileText, FiSearch, FiEdit, FiCamera, FiLink, FiLink2, FiCheckSquare, FiSquare, FiTrash2, FiCopy, FiBriefcase, FiArrowLeft, FiX } from 'react-icons/fi';
+import { FiClock, FiUser, FiEdit, FiLink, FiLink2, FiCheckSquare, FiSquare, FiTrash2, FiCopy, FiBriefcase, FiArrowLeft, FiX } from 'react-icons/fi';
 import type { HistoryAction } from '../types';
+import { PRESET_CARD_COLORS } from '../utils/colors';
 
 const ACTION_META: Record<HistoryAction, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
   case_created:    { icon: FiBriefcase,  color: 'text-indigo-400' },
@@ -28,17 +29,6 @@ const formatRelativeTime = (timestamp: number): string => {
   if (days < 7) return `${days} дн назад`;
   return new Date(timestamp).toLocaleDateString('ru-RU');
 };
-
-void FiMapPin; void FiFileText; void FiSearch; void FiCamera;
-
-const PRESET_COLORS = [
-  '#fef3c7',
-  '#bbf7d0',
-  '#bfdbfe',
-  '#fecdd3',
-  '#ddd6fe',
-  '#fed7aa',
-] as const;
 
 export default function RightSummaryPanel() {
   const { cases, activeCaseId, selectedCardId, addTask, toggleTask, deleteTask, updateCard, deleteCard } = useStore();
@@ -101,7 +91,7 @@ export default function RightSummaryPanel() {
             <div>
               <label className="text-[9px] text-gray-600 uppercase tracking-widest block mb-2.5">Цвет</label>
               <div className="flex items-center gap-1.5">
-                {PRESET_COLORS.map((color) => (
+                {PRESET_CARD_COLORS.map((color) => (
                   <button
                     key={color}
                     onClick={() => updateCard(selectedCard.id, { color: selectedCard.color === color ? undefined : color })}
@@ -119,7 +109,7 @@ export default function RightSummaryPanel() {
                     style={{
                       background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
                       boxShadow:
-                        selectedCard.color && !(PRESET_COLORS as readonly string[]).includes(selectedCard.color)
+                        selectedCard.color && !(PRESET_CARD_COLORS as readonly string[]).includes(selectedCard.color)
                           ? '0 0 0 2px rgba(255,255,255,0.5)'
                           : 'inset 0 1px 2px rgba(0,0,0,0.2)',
                     }}

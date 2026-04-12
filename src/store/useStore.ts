@@ -53,6 +53,8 @@ interface StoreState {
   saveToStorage: () => Promise<void>;
 }
 
+let _cardTextUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+
 const getDefaultCase = (): Case => ({
   id: 'IA-0001',
   name: 'IA-0001',
@@ -145,12 +147,8 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   updateCard: (id, updates) => {
-    const activeCase = get().cases.find((c) => c.id === get().activeCaseId);
-    const card = activeCase?.cards.find((c) => c.id === id);
     const isSignificant = updates.title !== undefined || updates.description !== undefined || updates.imageUrl !== undefined;
-    const entry = isSignificant
-      ? makeHistoryEntry('card_updated', `Обновлена карточка: ${updates.title ?? card?.title ?? id}`)
-      : null;
+
     set((state) => ({
       cases: state.cases.map((c) =>
         c.id === state.activeCaseId
@@ -159,13 +157,30 @@ export const useStore = create<StoreState>((set, get) => ({
               cards: c.cards.map((card) =>
                 card.id === id ? { ...card, ...updates } : card
               ),
-              history: entry ? [...(c.history ?? []), entry] : (c.history ?? []),
               updatedAt: Date.now(),
             }
           : c
       ),
     }));
-    get().saveToStorage();
+
+    if (isSignificant) {
+      if (_cardTextUpdateTimer) clearTimeout(_cardTextUpdateTimer);
+      _cardTextUpdateTimer = setTimeout(() => {
+        const activeCase = get().cases.find((c) => c.id === get().activeCaseId);
+        const card = activeCase?.cards.find((c) => c.id === id);
+        const entry = makeHistoryEntry('card_updated', `Обновлена карточка: ${card?.title ?? id}`);
+        set((state) => ({
+          cases: state.cases.map((c) =>
+            c.id === state.activeCaseId
+              ? { ...c, history: [...(c.history ?? []), entry] }
+              : c
+          ),
+        }));
+        get().saveToStorage();
+      }, 1500);
+    } else {
+      get().saveToStorage();
+    }
   },
 
   deleteCard: (id) => {
