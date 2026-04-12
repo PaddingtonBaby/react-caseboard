@@ -1,5 +1,7 @@
 export type EvidenceType = 'person' | 'location' | 'document' | 'item' | 'note' | 'photo';
 
+export const CURRENT_SCHEMA_VERSION = 1;
+
 export interface EvidenceCard {
   id: string;
   type: EvidenceType;
@@ -53,6 +55,12 @@ export interface Case {
   history: HistoryEntry[];
   createdAt: number;
   updatedAt: number;
+}
+
+export interface CaseExportSchema {
+  schemaVersion: number;
+  exportedAt: number;
+  case: Case;
 }
 
 export interface ContextMenuState {

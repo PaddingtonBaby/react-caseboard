@@ -39,8 +39,8 @@ export default function ImportExportModal() {
       return;
     }
 
-    const success = importCase(importJson);
-    if (success) {
+    const result = importCase(importJson);
+    if (result.ok) {
       setMessage({ type: 'success', text: 'Готово!' });
       setImportJson('');
       setTimeout(() => {
@@ -48,8 +48,8 @@ export default function ImportExportModal() {
         setImportExportOpen(false);
       }, 1500);
     } else {
-      setMessage({ type: 'error', text: 'Ошибка формата' });
-      setTimeout(() => setMessage(null), 3000);
+      setMessage({ type: 'error', text: result.error });
+      setTimeout(() => setMessage(null), 5000);
     }
   };
 
